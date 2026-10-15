@@ -1,8 +1,11 @@
 package com.catmiih.delivery.courier.management.api.controller;
 
 import com.catmiih.delivery.courier.management.api.model.CourierInput;
+import com.catmiih.delivery.courier.management.api.model.CourierPayoutCalculationInput;
+import com.catmiih.delivery.courier.management.api.model.CourierPayoutResultModel;
 import com.catmiih.delivery.courier.management.domain.model.Courier;
 import com.catmiih.delivery.courier.management.domain.repository.CourierRepository;
+import com.catmiih.delivery.courier.management.domain.service.CourierPayoutService;
 import com.catmiih.delivery.courier.management.domain.service.CourierRegistrationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @RestController
@@ -22,6 +26,7 @@ public class CourierController {
 
     private final CourierRepository courierRepository;
     private final CourierRegistrationService courierRegistrationService;
+    private final CourierPayoutService courierPayoutService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -46,6 +51,13 @@ public class CourierController {
     public Courier findById(@PathVariable UUID courierId){
         return courierRepository.findById(courierId)
                 .orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
+    @PostMapping("/payout-calculation")
+    public CourierPayoutResultModel calculate(@RequestBody CourierPayoutCalculationInput input){
+        BigDecimal payoutFee = courierPayoutService.calculate(input.getDistanceInKm());
+
+        return new CourierPayoutResultModel(payoutFee);
     }
 
 }

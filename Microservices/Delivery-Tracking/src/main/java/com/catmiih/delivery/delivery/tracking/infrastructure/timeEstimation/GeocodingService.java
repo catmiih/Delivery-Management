@@ -1,4 +1,4 @@
-package com.catmiih.delivery.delivery.tracking.infrastructure;
+package com.catmiih.delivery.delivery.tracking.infrastructure.timeEstimation;
 
 import com.catmiih.delivery.delivery.tracking.domain.model.Coordinates;
 

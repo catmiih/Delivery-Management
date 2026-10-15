@@ -1,4 +1,4 @@
-package com.catmiih.delivery.delivery.tracking.infrastructure;
+package com.catmiih.delivery.delivery.tracking.infrastructure.timeEstimation;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;

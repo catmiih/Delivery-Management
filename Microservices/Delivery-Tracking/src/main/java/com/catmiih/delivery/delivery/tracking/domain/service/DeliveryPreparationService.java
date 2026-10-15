@@ -5,10 +5,9 @@ import com.catmiih.delivery.delivery.tracking.api.model.DeliveryInput;
 import com.catmiih.delivery.delivery.tracking.api.model.ItemInput;
 import com.catmiih.delivery.delivery.tracking.domain.exception.DomainException;
 import com.catmiih.delivery.delivery.tracking.domain.model.ContactPoint;
-import com.catmiih.delivery.delivery.tracking.domain.model.Coordinates;
 import com.catmiih.delivery.delivery.tracking.domain.model.Delivery;
 import com.catmiih.delivery.delivery.tracking.domain.repository.DeliveryRepository;
-import com.catmiih.delivery.delivery.tracking.infrastructure.GeocodingService;
+import com.catmiih.delivery.delivery.tracking.infrastructure.timeEstimation.GeocodingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +22,8 @@ import java.util.UUID;
 public class DeliveryPreparationService {
 
     private final DeliveryRepository deliveryRepository;
-
-    private final GeocodingService geocodingService;
+    private final DeliveryTimeEstimationService deliveryTimeEstimationService;
+    private final CourierPayoutCalculationService courierPayoutCalculationService;
 
     @Transactional
     public Delivery draft(DeliveryInput input){
@@ -66,29 +65,15 @@ public class DeliveryPreparationService {
                 .phone(recipientInput.getPhone())
                 .build();
 
-        double distanceKm = DistanceCalculator.calculate(
-                geocodingService.geocode(
-                        senderInput.getZipCode(),
-                        senderInput.getStreet(),
-                        senderInput.getNumber()
-                ),
-                geocodingService.geocode(
-                        recipientInput.getZipCode(),
-                        recipientInput.getStreet(),
-                        recipientInput.getNumber()
-                )
-        );
+        DeliveryEstimate estimate = deliveryTimeEstimationService.estimate(sender, recipient);
+        BigDecimal payout = courierPayoutCalculationService.calculatePayout(estimate.getDistanceInKm());
 
-        BigDecimal distanceFee = new BigDecimal("2");
-        Duration expectedDeliveryTime = estimateDeliveryTime(distanceKm);
-        BigDecimal payout = BigDecimal.valueOf(distanceKm)
-                            .multiply(distanceFee)
-                            .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal distanceFee = calculateFee(estimate.getDistanceInKm());
 
         Delivery.PreparationDetails preparationDetails = Delivery.PreparationDetails.builder()
                 .recipient(recipient)
                 .sender(sender)
-                .expectedDeliveryTime(expectedDeliveryTime)
+                .expectedDeliveryTime(estimate.getEstimatedTime())
                 .courierPayout(payout)
                 .distanceFee(distanceFee)
                 .build();
@@ -99,18 +84,9 @@ public class DeliveryPreparationService {
         }
     }
 
-    private Duration estimateDeliveryTime(double distanceKm) {
-        double estimatedRoadDistanceKm = distanceKm * 1.3;
-
-        double averageSpeedKmh = 25.0;
-        long preparationMinutes = 10;
-
-        long travelMinutes = (long) Math.ceil(
-                estimatedRoadDistanceKm / averageSpeedKmh * 60
-        );
-
-        return Duration.ofMinutes(
-                preparationMinutes + travelMinutes
-        );
+    private BigDecimal calculateFee(Double distanceInKm) {
+        return new BigDecimal("3")
+                .multiply(new BigDecimal(distanceInKm))
+                .setScale(2,RoundingMode.HALF_EVEN);
     }
 }
